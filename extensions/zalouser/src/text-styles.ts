@@ -34,6 +34,10 @@ type FenceMarker = {
   indent: number;
 };
 
+type ActiveFence = FenceMarker & {
+  quoteIndent: number;
+};
+
 const TAG_STYLE_MAP: Record<string, InlineStyle | null> = {
   red: TextStyle.Red,
   orange: TextStyle.Orange,
@@ -102,38 +106,37 @@ export function parseZalouserTextStyles(input: string): { text: string; styles: 
   const lines = input.split("\n");
   const lineStyles: LineStyle[] = [];
   const processedLines: string[] = [];
-  let activeFence: FenceMarker | null = null;
+  let activeFence: ActiveFence | null = null;
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-    let line = lines[lineIndex];
-    let { text: unquotedLine, indent: baseIndent } = stripQuotePrefix(line);
-    line = unquotedLine;
+    const rawLine = lines[lineIndex];
+    const { text: unquotedLine, indent: baseIndent } = stripQuotePrefix(rawLine);
 
-    const fence = parseFenceMarker(line);
-    if (fence) {
-      if (!activeFence) {
-        if (!hasClosingFence(lines, lineIndex + 1, fence)) {
-          processedLines.push(escapeLiteralText(line, escapeMap));
-          activeFence = fence;
-          continue;
-        }
-        activeFence = fence;
-        continue;
-      }
-
-      if (isClosingFence(line, activeFence)) {
+    if (activeFence) {
+      const codeLine = activeFence.quoteIndent > 0 ? unquotedLine : rawLine;
+      if (isClosingFence(codeLine, activeFence)) {
         activeFence = null;
         continue;
       }
-    }
-
-    if (activeFence) {
       processedLines.push(
         escapeLiteralText(
-          normalizeCodeBlockLeadingWhitespace(stripCodeFenceIndent(line, activeFence.indent)),
+          normalizeCodeBlockLeadingWhitespace(stripCodeFenceIndent(codeLine, activeFence.indent)),
           escapeMap,
         ),
       );
+      continue;
+    }
+
+    let line = unquotedLine;
+    const openingFence = resolveOpeningFence(rawLine);
+    if (openingFence) {
+      const fenceLine = openingFence.quoteIndent > 0 ? unquotedLine : rawLine;
+      if (!hasClosingFence(lines, lineIndex + 1, openingFence)) {
+        processedLines.push(escapeLiteralText(fenceLine, escapeMap));
+        activeFence = openingFence;
+        continue;
+      }
+      activeFence = openingFence;
       continue;
     }
 
@@ -288,13 +291,36 @@ function clampIndent(spaceCount: number): number {
   return Math.min(5, Math.max(1, Math.floor(spaceCount / 2)));
 }
 
-function hasClosingFence(lines: string[], startIndex: number, fence: FenceMarker): boolean {
+function hasClosingFence(lines: string[], startIndex: number, fence: ActiveFence): boolean {
   for (let index = startIndex; index < lines.length; index += 1) {
-    if (isClosingFence(stripQuotePrefix(lines[index]).text, fence)) {
+    const candidate = fence.quoteIndent > 0 ? stripQuotePrefix(lines[index]).text : lines[index];
+    if (isClosingFence(candidate, fence)) {
       return true;
     }
   }
   return false;
+}
+
+function resolveOpeningFence(line: string): ActiveFence | null {
+  const directFence = parseFenceMarker(line);
+  if (directFence) {
+    return { ...directFence, quoteIndent: 0 };
+  }
+
+  const quoted = stripQuotePrefix(line);
+  if (quoted.indent === 0) {
+    return null;
+  }
+
+  const quotedFence = parseFenceMarker(quoted.text);
+  if (!quotedFence) {
+    return null;
+  }
+
+  return {
+    ...quotedFence,
+    quoteIndent: quoted.indent,
+  };
 }
 
 function stripQuotePrefix(line: string): { text: string; indent: number } {

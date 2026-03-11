@@ -76,6 +76,20 @@ describe("parseZalouserTextStyles", () => {
     });
   });
 
+  it("preserves quote-prefixed lines inside normal fenced code blocks", () => {
+    expect(parseZalouserTextStyles("```\n> prompt\n```")).toEqual({
+      text: "> prompt",
+      styles: [],
+    });
+  });
+
+  it("does not treat quote-prefixed fence text inside code as a closing fence", () => {
+    expect(parseZalouserTextStyles("```\n> ```\n*still code*\n```")).toEqual({
+      text: "> ```\n*still code*",
+      styles: [],
+    });
+  });
+
   it("keeps unmatched fences literal", () => {
     expect(parseZalouserTextStyles("```python")).toEqual({
       text: "```python",
