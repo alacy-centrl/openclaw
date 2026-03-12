@@ -97,9 +97,23 @@ describe("parseZalouserTextStyles", () => {
     });
   });
 
+  it("treats spaced nested blockquotes as deeper quoted lines", () => {
+    expect(parseZalouserTextStyles("> > quoted")).toEqual({
+      text: "quoted",
+      styles: [{ start: 0, len: 6, st: TextStyle.Indent, indentSize: 2 }],
+    });
+  });
+
   it("treats indented quoted fences as literal code blocks", () => {
     expect(parseZalouserTextStyles("  > ```\n  > *cmd*\n  > ```")).toEqual({
       text: "*cmd*",
+      styles: [],
+    });
+  });
+
+  it("treats spaced nested quoted fences as literal code blocks", () => {
+    expect(parseZalouserTextStyles("> > ```\n> > code\n> > ```")).toEqual({
+      text: "code",
       styles: [],
     });
   });
@@ -108,6 +122,17 @@ describe("parseZalouserTextStyles", () => {
     expect(parseZalouserTextStyles("> ```\n>> prompt\n> ```")).toEqual({
       text: "> prompt",
       styles: [],
+    });
+  });
+
+  it("keeps quote indentation on heading lines", () => {
+    expect(parseZalouserTextStyles("> # Title")).toEqual({
+      text: "Title",
+      styles: [
+        { start: 0, len: 5, st: TextStyle.Bold },
+        { start: 0, len: 5, st: TextStyle.Big },
+        { start: 0, len: 5, st: TextStyle.Indent, indentSize: 1 },
+      ],
     });
   });
 
@@ -147,6 +172,13 @@ describe("parseZalouserTextStyles", () => {
   it("keeps escaped markers literal", () => {
     expect(parseZalouserTextStyles("\\*literal\\* \\{underline}tag{/underline}")).toEqual({
       text: "*literal* {underline}tag{/underline}",
+      styles: [],
+    });
+  });
+
+  it("keeps indented code blocks literal", () => {
+    expect(parseZalouserTextStyles("    *cmd*")).toEqual({
+      text: "\u00A0\u00A0\u00A0\u00A0*cmd*",
       styles: [],
     });
   });

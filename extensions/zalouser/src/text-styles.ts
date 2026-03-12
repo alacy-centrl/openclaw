@@ -143,13 +143,32 @@ export function parseZalouserTextStyles(input: string): { text: string; styles: 
       continue;
     }
 
+    const outputLineIndex = processedLines.length;
+    if (isIndentedCodeBlockLine(line)) {
+      if (baseIndent > 0) {
+        lineStyles.push({
+          lineIndex: outputLineIndex,
+          style: TextStyle.Indent,
+          indentSize: baseIndent,
+        });
+      }
+      processedLines.push(escapeLiteralText(normalizeCodeBlockLeadingWhitespace(line), escapeMap));
+      continue;
+    }
+
     const headingMatch = line.match(/^(#{1,4})\s(.*)$/);
     if (headingMatch) {
-      const outputLineIndex = processedLines.length;
       const depth = headingMatch[1].length;
       lineStyles.push({ lineIndex: outputLineIndex, style: TextStyle.Bold });
       if (depth === 1) {
         lineStyles.push({ lineIndex: outputLineIndex, style: TextStyle.Big });
+      }
+      if (baseIndent > 0) {
+        lineStyles.push({
+          lineIndex: outputLineIndex,
+          style: TextStyle.Indent,
+          indentSize: baseIndent,
+        });
       }
       processedLines.push(headingMatch[2]);
       continue;
@@ -163,7 +182,6 @@ export function parseZalouserTextStyles(input: string): { text: string; styles: 
       content = indentMatch[2];
     }
     const totalIndent = Math.min(5, baseIndent + indentLevel);
-    const outputLineIndex = processedLines.length;
 
     if (/^[-*+]\s\[[ xX]\]\s/.test(content)) {
       if (totalIndent > 0) {
@@ -331,18 +349,27 @@ function stripQuotePrefix(
   line: string,
   maxDepth = Number.POSITIVE_INFINITY,
 ): { text: string; indent: number } {
-  const match = line.match(/^([ ]{0,3})(>+)( ?)(.*)$/);
-  if (!match) {
+  let cursor = 0;
+  while (cursor < line.length && cursor < 3 && line[cursor] === " ") {
+    cursor += 1;
+  }
+
+  let removedDepth = 0;
+  let consumedCursor = cursor;
+  while (removedDepth < maxDepth && consumedCursor < line.length && line[consumedCursor] === ">") {
+    removedDepth += 1;
+    consumedCursor += 1;
+    if (line[consumedCursor] === " ") {
+      consumedCursor += 1;
+    }
+  }
+
+  if (removedDepth === 0) {
     return { text: line, indent: 0 };
   }
 
-  const removedDepth = Math.min(match[2].length, maxDepth);
-  const remainingMarkers = match[2].slice(removedDepth);
-  const remainingText =
-    remainingMarkers.length > 0 ? `${remainingMarkers}${match[3]}${match[4]}` : match[4];
-
   return {
-    text: remainingText,
+    text: line.slice(consumedCursor),
     indent: Math.min(5, removedDepth),
   };
 }
@@ -466,6 +493,10 @@ function normalizeCodeBlockLeadingWhitespace(line: string): string {
   return line.replace(/^[ \t]+/, (leadingWhitespace) =>
     leadingWhitespace.replace(/\t/g, "\u00A0\u00A0\u00A0\u00A0").replace(/ /g, "\u00A0"),
   );
+}
+
+function isIndentedCodeBlockLine(line: string): boolean {
+  return /^(?: {4,}|\t)/.test(line);
 }
 
 function stripCodeFenceIndent(line: string, indent: number): string {
