@@ -164,11 +164,15 @@
 ## GitHub Search (`gh`)
 
 - Prefer targeted keyword search before proposing new work or duplicating fixes.
-- Use `--repo alacy-centrl/openclaw` + `--match title,body` first; add `--match comments` when triaging follow-up threads.
-- PRs: `gh search prs --repo alacy-centrl/openclaw --match title,body --limit 50 -- "auto-update"`
-- Issues: `gh search issues --repo alacy-centrl/openclaw --match title,body --limit 50 -- "auto-update"`
-- Structured output example:
-  `gh search issues --repo alacy-centrl/openclaw --match title,body --limit 50 --json number,title,state,url,updatedAt -- "auto update" --jq '.[] | "\(.number) | \(.state) | \(.title) | \(.url)"'`
+- **Primary search (your fork)**: Use `--repo alacy-centrl/openclaw` + `--match title,body` first; add `--match comments` when triaging follow-up threads.
+  - PRs: `gh search prs --repo alacy-centrl/openclaw --match title,body --limit 50 -- "auto-update"`
+  - Issues: `gh search issues --repo alacy-centrl/openclaw --match title,body --limit 50 -- "auto-update"`
+  - Structured output example:
+    `gh search issues --repo alacy-centrl/openclaw --match title,body --limit 50 --json number,title,state,url,updatedAt -- "auto update" --jq '.[] | "\(.number) | \(.state) | \(.title) | \(.url)"'`
+- **Secondary search (official repo)**: When investigating problems, looking for new work, or checking for duplicate fixes, ALSO search the official `openclaw/openclaw` repo:
+  - `gh search issues --repo openclaw/openclaw --match title,body --limit 50 -- "<keyword>"`
+  - `gh search prs --repo openclaw/openclaw --match title,body --limit 50 -- "<keyword>"`
+  - The official repo has more issues/PRs to learn from; check it before proposing solutions or starting new work.
 
 ## Security & Configuration Tips
 
