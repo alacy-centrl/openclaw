@@ -52,7 +52,7 @@ jobs:
             OPENCLAW_VARIANT=default
             OPENCLAW_DOCKER_APT_PACKAGES=
             OPENCLAW_INSTALL_BROWSER=1
-            OPENCLAW_EXTENSIONS=matrix memory-lancedb
+            OPENCLAW_EXTENSIONS="matrix memory-lancedb"
           platforms: linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
